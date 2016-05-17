@@ -42,7 +42,8 @@ library(googlesheets)
 gs <- gs_key("17041tChNHzRNYmi1nCCJvacOqbk19MJUzW8UVX91b_A")
 
 venues <- gs_read(gs, sheet = "AFL_data",
-                  locale = readr::locale(encoding = "UTF-8"))
+                  locale = readr::locale(encoding = "UTF-8")) %>%
+    tbl_df()
 
 ## create variable for URL of season 2016 on afltables
 afltables <- read_html("http://afltables.com/afl/seas/2016.html")
@@ -134,7 +135,7 @@ scores_2016 <-
 played_where <-
     scores_2016 %>%
     inner_join(games_2016) %>%
-    ggplot(aes(x=team, fill=venue)) +
+    ggplot(aes(x=role, fill=venue)) +
 	geom_bar() +
     facet_wrap(~ team) +
 	## coord_flip() +
@@ -143,21 +144,14 @@ played_where <-
 	scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
 	scale_y_continuous()
 
-
-
-
-## create chart of where teams have played by venue
-played_where <- ggplot(season_2016, aes(x=team, fill=venue)) +
-              	geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
-	              ## facet_wrap() +
-              	coord_flip() +
-	             	labs(title="Where has each team played matches this year?", x="", y="",fill="Venue") +
-	              scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
-	              scale_y_continuous()
-
 ## create chart of where teams have played by state
-played_state <- ggplot(season_2016, aes(x=team, fill=venue_state)) +
-	geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
+played_state <-
+    scores_2016 %>%
+    inner_join(games_2016) %>%
+    inner_join(venues) %>%
+    ggplot(aes(x=team, fill=venue_state)) +
+	geom_bar() +
+    # geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
 	## facet_wrap() +
 	coord_flip() +
 	labs(title="Where has each team played matches this year?", x="", y="",fill="State") +
