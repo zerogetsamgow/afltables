@@ -105,6 +105,53 @@ teams <- data.frame(team = levels(season_2016$team),team_state = c(rep("Victoria
 ## merge teams data frame with season data frame
 season_2016 %>% merge(teams) -> season_2016																																	 
 
+played_where <- ggplot(season_2016, aes(x=playing, fill=venue)) +
+	geom_bar() +
+  facet_wrap(~ team) +
+	## coord_flip() +
+	labs(title="Where has each team played matches this year?", x="", y="",fill="Venue") +
+	## scale_fill_manual(labels=c("away"="Away","home"="Home"),values=c("dark blue","red")) +
+	scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
+	scale_y_continuous()
+
+
+
+																																	 
+## create chart of where teams have played by venue																																	 
+played_where <- ggplot(season_2016, aes(x=team, fill=venue)) +
+              	geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
+	              ## facet_wrap() +
+              	coord_flip() +
+	             	labs(title="Where has each team played matches this year?", x="", y="",fill="Venue") +
+	              scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
+	              scale_y_continuous()
+
+## create chart of where teams have played by state
+played_state <- ggplot(season_2016, aes(x=team, fill=venue_state)) +
+	geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
+	## facet_wrap() +
+	coord_flip() +
+	labs(title="Where has each team played matches this year?", x="", y="",fill="State") +
+	scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
+	scale_y_continuous()
+
+## create chart showing where teams have won 
+wins_by_venue <- ggplot(season_2016, aes(x=winner, fill=venue)) +
+									 geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
+									 ## facet_wrap() +
+	               	 coord_flip() +
+	                 labs(title="Where has each team won matches this year?", x="", y="",fill="Venue") +
+									 scale_x_discrete(drop = FALSE) +
+									 scale_y_continuous()
+
+wins_by_state <- ggplot(season_2016, aes(x=winner, fill=venue_state)) +
+                	geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
+	                ## facet_wrap() +
+									coord_flip() +
+									labs(title="Where has each team won this year?", x="", y="",fill="State") +
+									scale_x_discrete(drop = FALSE) +
+									scale_y_continuous()
+
 ## Obtain the top eight teams based on latest afltables ladder
 afl_ladder_url <- read_html("http://afltables.com/afl/seas/ladders/laddersyby.html#2016")
 afl_ladder_url %>% html_nodes("table")  %>% 
@@ -129,7 +176,6 @@ wins_home_topeight <- ggplot(season_2016, aes(x=winner, fill=team)) +
 	scale_x_discrete(drop = FALSE) +
 	scale_y_continuous(breaks = c(0,1,2,3,4,5), limits=c(0,5))
 
-## create chart of all teams losses against top eight.
 losses_topeight <- ggplot(season_2016, aes(x=team, fill=winner)) +
 	geom_bar(data=subset.data.frame(season_2016,((season_2016$winner %in% top_eight & !(season_2016$team==season_2016$winner))))) +
 	## facet_wrap() +
