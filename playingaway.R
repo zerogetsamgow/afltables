@@ -62,41 +62,31 @@ names(season_2016) <-
       "away", "quarters_away", "score_away", "result")
 
 ## Remove rows not required for this analysis, probably shouldn't do this but makes gathering easier later
-season_2016$quarters_home <- NULL
-season_2016$quarters_away <- NULL
-season_2016$score_home <- NULL
-season_2016$score_away <- NULL
+season_2016 <-
+    season_2016 %>%
+    select(-c(quarters_home, quarters_away, score_home, score_away)) %>%
+    mutate(venue = sub(".*Venue: ", "", date_venue),
+           winner = sub(" won.*", "", result)) %>%
+    select(-result, -date_venue)
 
 ## separate out quarter scores
 ## season_2016 %>%  separate(quarters_home, into = c("q1_home", "q2_home", "q3_home", "q4_home"), sep = " ") -> season_2016
 ## season_2016 %>%  separate(quarters_away, into = c("q1_away", "q2_away", "q3_away", "q4_away"), sep = " ") -> season_2016
 
-## separate out venue from date_venue field
-season_2016$venue <- sub(".*Venue: ", "", season_2016$date_venue)
-season_2016$date_venue <- NULL
-season_2016$winner <- sub(" won.*", "", season_2016$result)
-season_2016$result <- NULL
+## Get venue_state data
+library(googlesheets)
+# Run gs_auth() to set this up
 
-## Convert venue variable to factor and create venue data frame with venue_state variable
-season_2016$venue <- factor(season_2016$venue)
-venues <- data.frame(venue = levels(season_2016$venue),venue_state = c("South Australia",
-												  	                                           "Tasmania",
-												                                               "Queensland",
-												                                               "Queensland",
-												                                               "Victoria",
-																																			 "Queensland",
-																																			 "Victoria",
-																																			 "Victoria",
-																																			 "Australian Capital Territory",
-																																			 "Northern Territory",
-																					 "New South Wales",
-																					 "Western Australia",
-																					 "New South Wales",
-																					 "Northern Territory",
-																					 "Tasmania"))
+gs <- gs_key("17041tChNHzRNYmi1nCCJvacOqbk19MJUzW8UVX91b_A")
+
+venues <- gs_read(gs, sheet = "AFL_data",
+                  locale = readr::locale(encoding = "UTF-8"))
 
 ## convert wide data to long data
-season_2016 %>% gather(playing, team, home:away)	%>% merge(venues) ->	season_2016
+season_2016 <-
+    season_2016 %>%
+    gather(playing, team, home:away) %>%
+    inner_join(venues)
 
 ## factorise team variables with level order chosen to group Victoria and interstate teams
 season_2016$team %>% factor(levels=c("Carlton","Collingwood","Essendon","Geelong","Hawthorn",
