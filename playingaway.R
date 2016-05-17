@@ -8,6 +8,42 @@ library(ggplot2)
 library(ggthemes)
 library(tidyr)
 
+# Get team data ----
+team_state_csv <-
+    "team,state
+    Carlton,VIC
+    Collingwood,VIC
+    Essendon,VIC
+    Geelong,VIC
+    Hawthorn,VIC
+    Melbourne,VIC
+    North Melbourne,VIC
+    Richmond,VIC
+    St Kilda,VIC
+    Western Bulldogs,VIC
+    Adelaide,SA
+    Brisbane Lions,QLD
+    Fremantle,WA
+    Gold Coast,QLD
+    Greater Western Sydney,NSW
+    Port Adelaide,SA
+    Sydney,NSW
+    West Coast,WA"
+
+teams <-
+    read_csv(team_state_csv) %>%
+    mutate(vic = state=="VIC" )%>%
+    arrange(desc(vic), team)
+
+# Get venue state data ----
+library(googlesheets)
+# Run gs_auth() to set this up
+
+gs <- gs_key("17041tChNHzRNYmi1nCCJvacOqbk19MJUzW8UVX91b_A")
+
+venues <- gs_read(gs, sheet = "AFL_data",
+                  locale = readr::locale(encoding = "UTF-8"))
+
 ## create variable for URL of season 2016 on afltables
 afltables <- read_html("http://afltables.com/afl/seas/2016.html")
 
@@ -24,9 +60,6 @@ round_tables <-
         ## Rounds 16 to 22 are bye rounds, so have six matches
         data_frame(start_row = seq(174, 174 + 12*12, by=12),
                                  end_row = start_row + 8))
-
-## create empty data frame for season_2016 matche
-season_2016 <- data.frame()
 
 get_table_row <- function(round_no, round_tbl) {
     ## read match data to data frame called the_table
@@ -57,66 +90,55 @@ season_2016 <- as_data_frame(get_full_table())
 
 ## Name rows
 names(season_2016) <-
-    c("round", "home", "quarters_home",
+    c("round", "team_home", "quarters_home",
       "score_home", "date_venue",
-      "away", "quarters_away", "score_away", "result")
+      "team_away", "quarters_away", "score_away", "result")
 
-## Remove rows not required for this analysis, probably shouldn't do this but makes gathering easier later
-season_2016 <-
+season_2016$game_id <- 1:nrow(season_2016)
+
+## Remove rows not required for this analysis, probably shouldn't
+## do this but makes gathering easier later
+games_2016 <-
     season_2016 %>%
-    select(-c(quarters_home, quarters_away, score_home, score_away)) %>%
-    mutate(venue = sub(".*Venue: ", "", date_venue),
+    select(game_id, round, date_venue, result) %>%
+    mutate(local_time = gsub("\\s+(\\(|Att).*$", "", date_venue),
+           venue = sub(".*Venue: ", "", date_venue),
+           attendance = as.integer(sub(",", "",
+                            gsub("^.*Att:([0-9,]+).*$", "\\1", date_venue))),
            winner = sub(" won.*", "", result)) %>%
     select(-result, -date_venue)
 
-## separate out quarter scores
-## season_2016 %>%  separate(quarters_home, into = c("q1_home", "q2_home", "q3_home", "q4_home"), sep = " ") -> season_2016
-## season_2016 %>%  separate(quarters_away, into = c("q1_away", "q2_away", "q3_away", "q4_away"), sep = " ") -> season_2016
-
-## Get venue_state data
-library(googlesheets)
-# Run gs_auth() to set this up
-
-gs <- gs_key("17041tChNHzRNYmi1nCCJvacOqbk19MJUzW8UVX91b_A")
-
-venues <- gs_read(gs, sheet = "AFL_data",
-                  locale = readr::locale(encoding = "UTF-8"))
-
-## convert wide data to long data
-season_2016 <-
-    season_2016 %>%
+## Separate out quarter scores
+scores_2016 <-
+    season_temp %>%
+    separate(quarters_home, into = paste0("q", 1:4, "_home"), sep = " ") %>%
+    separate(quarters_away, into = paste0("q", 1:4, "_home"), sep = " ") %>%
     gather(playing, team, home:away) %>%
-    inner_join(venues)
 
-## factorise team variables with level order chosen to group Victoria and interstate teams
-season_2016$team %>% factor(levels=c("Carlton","Collingwood","Essendon","Geelong","Hawthorn",
-																 "Melbourne","North Melbourne","Richmond","St Kilda","Western Bulldogs",
-																 "Adelaide","Brisbane Lions","Fremantle","Gold Coast","Greater Western Sydney",
-																 "Port Adelaide","Sydney","West Coast")) -> season_2016$team
+## Create data on scores
+## This is ugly. There should be a better way.
+scores_2016 <-
+    season_2016 %>%
+    select(game_id, team_home, quarters_home, score_home) %>%
+    rename(team=team_home, quarters=quarters_home, score=score_home) %>%
+    mutate(role="home")
 
-season_2016$winner %>% factor(levels=c("Carlton","Collingwood","Essendon","Geelong","Hawthorn",
-																		 "Melbourne","North Melbourne","Richmond","St Kilda","Western Bulldogs",
-																		 "Adelaide","Brisbane Lions","Fremantle","Gold Coast","Greater Western Sydney",
-																		 "Port Adelaide","Sydney","West Coast")) -> season_2016$winner
+scores_2016 <-
+    rbind(scores_2016,
+    season_2016 %>%
+    select(game_id, team_away, quarters_away, score_away) %>%
+    rename(team=team_away, quarters=quarters_away, score=score_away) %>%
+    mutate(role="away"))
 
-## create teams data frame with team_state variable
-teams <- data.frame(team = levels(season_2016$team),team_state = c(rep("Victoria", 10),
-																																			 "South Australia",
-																																			 "Queensland",
-																																			 "Western Australia",
-																																			 "Queensland",
-																																			 "New South Wales",
-																																	     "South Australia",
-																																	     "New South Wales",
-																																     "Western Australia"))
 ## merge teams data frame with season data frame
-season_2016 %>% merge(teams) -> season_2016
-
-played_where <- ggplot(season_2016, aes(x=playing, fill=venue)) +
+played_where <-
+    scores_2016 %>%
+    inner_join(games_2016) %>%
+    ggplot(aes(x=team, fill=venue)) +
 	geom_bar() +
-  facet_wrap(~ team) +
+    facet_wrap(~ team) +
 	## coord_flip() +
-	labs(title="Where has each team played matches this year?", x="", y="",fill="Venue") +
+	labs(title="Where has each team played matches this year?", x="", y="",fill="venue") +
 	## scale_fill_manual(labels=c("away"="Away","home"="Home"),values=c("dark blue","red")) +
 	scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
 	scale_y_continuous()
