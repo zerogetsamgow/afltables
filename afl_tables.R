@@ -97,12 +97,13 @@ season_2016$game_id <- 1:nrow(season_2016)
 ## do this but makes gathering easier later
 games_2016 <-
     season_2016 %>%
-    select(game_id, round, date_venue, result) %>%
+    select(game_id, round, date_venue, result, team_home, team_away) %>%
     mutate(local_time = gsub("\\s+(\\(|Att).*$", "", date_venue),
            venue = sub(".*Venue: ", "", date_venue),
            attendance = as.integer(sub(",", "",
                             gsub("^.*Att:([0-9,]+).*$", "\\1", date_venue))),
-           winner = sub(" won.*", "", result)) %>%
+           winner = sub(" won.*", "", result),
+           loser = ifelse(winner==team_home, team_home, team_away)) %>%
     select(-result, -date_venue)
 
 ## Create data on scores
@@ -120,5 +121,17 @@ scores_2016 <-
     rename(team=team_away, quarters=quarters_away, score=score_away) %>%
     mutate(role="away"))
 
+## Obtain the top eight teams based on latest afltables ladder
+top_eight <-
+    "http://afltables.com/afl/seas/ladders/laddersyby.html#2016" %>%
+    read_html() %>%
+    html_nodes("table") %>%
+    .[[1]] %>%
+    html_table(fill = TRUE, head = FALSE) %>%
+    data.frame() %>%
+    .[-c(1,2),] %>%
+    .[1:8,1] %>%
+    data_frame(team=.)
+
 # Save data
-save(scores_2016, games_2016, teams, venues, file="afltables.Rdata")
+save(scores_2016, games_2016, teams, venues, top_eight, file="afltables.Rdata")
