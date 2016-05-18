@@ -1,41 +1,28 @@
 library(xml2)
 library(dplyr)
 library(tidyr)
+library(rvest)
 
-# Get team data ----
-teams <-
-        "team,state
-    Carlton,VIC
-    Collingwood,VIC
-    Essendon,VIC
-    Geelong,VIC
-    Hawthorn,VIC
-    Melbourne,VIC
-    North Melbourne,VIC
-    Richmond,VIC
-    St Kilda,VIC
-    Western Bulldogs,VIC
-    Adelaide,SA
-    Brisbane Lions,QLD
-    Fremantle,WA
-    Gold Coast,QLD
-    Greater Western Sydney,NSW
-    Port Adelaide,SA
-    Sydney,NSW
-    West Coast,WA" %>%
-    read_csv() %>%
-    mutate(vic = state=="VIC" )%>%
-    arrange(desc(vic), team)
 
-# Get venue state data ----
+# Get team, venue and state data ----
 library(googlesheets)
 # Run gs_auth() to set this up
 
 gs <- gs_key("17041tChNHzRNYmi1nCCJvacOqbk19MJUzW8UVX91b_A")
 
-venues <-
-    gs_read(gs, sheet = "AFL_data",
-            locale = readr::locale(encoding = "UTF-8")) %>%
+teams <-  gs_read(gs, sheet = "AFL_data", ws = "Teams",
+                  locale = readr::locale(encoding = "UTF-8")) %>%
+    tbl_df() %>%
+    mutate(is_vic = team_state=="Vic") %>%
+    arrange(desc(is_vic), team)
+
+
+venues <- gs_read(gs, sheet = "AFL_data", ws = "Venues",
+                  locale = readr::locale(encoding = "UTF-8")) %>%
+    tbl_df()
+
+states <- gs_read(gs, sheet = "AFL_data", ws = "States",
+                  locale = readr::locale(encoding = "UTF-8")) %>%
     tbl_df()
 
 ## create variable for URL of season 2016 on afltables
@@ -103,7 +90,7 @@ games_2016 <-
            attendance = as.integer(sub(",", "",
                             gsub("^.*Att:([0-9,]+).*$", "\\1", date_venue))),
            winner = sub(" won.*", "", result),
-           loser = ifelse(winner==team_home, team_home, team_away)) %>%
+           loser = ifelse(winner==team_home, team_away, team_home)) %>%
     select(-result, -date_venue)
 
 ## Create data on scores
@@ -112,14 +99,14 @@ scores_2016 <-
     season_2016 %>%
     select(game_id, team_home, quarters_home, score_home) %>%
     rename(team=team_home, quarters=quarters_home, score=score_home) %>%
-    mutate(role="home")
+    mutate(playing_at="home")
 
 scores_2016 <-
     rbind(scores_2016,
     season_2016 %>%
     select(game_id, team_away, quarters_away, score_away) %>%
     rename(team=team_away, quarters=quarters_away, score=score_away) %>%
-    mutate(role="away"))
+    mutate(playing_at="away"))
 
 ## Obtain the top eight teams based on latest afltables ladder
 top_eight <-
