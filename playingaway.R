@@ -7,43 +7,30 @@ library(knitr)
 library(ggplot2)
 library(ggthemes)
 library(tidyr)
+library(readr)
 
-# Get team data ----
-team_state_csv <-
-    "team,state
-    Carlton,VIC
-    Collingwood,VIC
-    Essendon,VIC
-    Geelong,VIC
-    Hawthorn,VIC
-    Melbourne,VIC
-    North Melbourne,VIC
-    Richmond,VIC
-    St Kilda,VIC
-    Western Bulldogs,VIC
-    Adelaide,SA
-    Brisbane Lions,QLD
-    Fremantle,WA
-    Gold Coast,QLD
-    Greater Western Sydney,NSW
-    Port Adelaide,SA
-    Sydney,NSW
-    West Coast,WA"
 
-teams <-
-    read_csv(team_state_csv) %>%
-    mutate(vic = state=="VIC" )%>%
-    arrange(desc(vic), team)
-
-# Get venue state data ----
+# Get team, venue and state data ----
 library(googlesheets)
 # Run gs_auth() to set this up
 
 gs <- gs_key("17041tChNHzRNYmi1nCCJvacOqbk19MJUzW8UVX91b_A")
 
-venues <- gs_read(gs, sheet = "AFL_data",
+teams <-  gs_read(gs, sheet = "AFL_data", ws = "Teams",
+                  locale = readr::locale(encoding = "UTF-8")) %>%
+          tbl_df() %>%
+            mutate(is_vic = team_state=="Vic") %>%
+            arrange(desc(is_vic), team)
+
+
+venues <- gs_read(gs, sheet = "AFL_data", ws = "Venues",
                   locale = readr::locale(encoding = "UTF-8")) %>%
     tbl_df()
+
+states <- gs_read(gs, sheet = "AFL_data", ws = "States",
+                  locale = readr::locale(encoding = "UTF-8")) %>%
+    tbl_df()
+
 
 ## create variable for URL of season 2016 on afltables
 afltables <- read_html("http://afltables.com/afl/seas/2016.html")
@@ -71,7 +58,7 @@ get_table_row <- function(round_no, round_tbl) {
         html_table(fill = TRUE, head = FALSE)
 
     ## put all match data in one row and return
-    cbind(round_no, the_table[1,], the_table[2,])
+    return(cbind(round_no, the_table[1,], the_table[2,]))
 
 }
 
