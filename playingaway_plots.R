@@ -1,16 +1,15 @@
-library(rvest)
-library(magrittr)
-library(stringr)
-library(plyr)
 library(dplyr)
-library(knitr)
 library(ggplot2)
 library(ggthemes)
+load("afltables.Rdata")
+
+library(xml2)
+library(dplyr)
 library(tidyr)
 
 # Get team data ----
-team_state_csv <-
-    "team,state
+teams <-
+        "team,state
     Carlton,VIC
     Collingwood,VIC
     Essendon,VIC
@@ -28,10 +27,8 @@ team_state_csv <-
     Greater Western Sydney,NSW
     Port Adelaide,SA
     Sydney,NSW
-    West Coast,WA"
-
-teams <-
-    read_csv(team_state_csv) %>%
+    West Coast,WA" %>%
+    read_csv() %>%
     mutate(vic = state=="VIC" )%>%
     arrange(desc(vic), team)
 
@@ -41,8 +38,9 @@ library(googlesheets)
 
 gs <- gs_key("17041tChNHzRNYmi1nCCJvacOqbk19MJUzW8UVX91b_A")
 
-venues <- gs_read(gs, sheet = "AFL_data",
-                  locale = readr::locale(encoding = "UTF-8")) %>%
+venues <-
+    gs_read(gs, sheet = "AFL_data",
+            locale = readr::locale(encoding = "UTF-8")) %>%
     tbl_df()
 
 ## create variable for URL of season 2016 on afltables
@@ -72,13 +70,16 @@ get_table_row <- function(round_no, round_tbl) {
 
     ## put all match data in one row and return
     cbind(round_no, the_table[1,], the_table[2,])
+}
 
+get_row_nums <- function(round_no) {
+    seq(round_tables[round_no, ] %>% .[["start_row"]],
+        round_tables[round_no, ] %>% .[["end_row"]])
 }
 
 get_table_rows <- function(round_no) {
-    temp <- lapply(seq(round_tables[round_no, 1],
-               round_tables[round_no, 2]),
-           get_table_row, round_no = round_no)
+    temp <- lapply(get_row_nums(round_no),
+                   get_table_row, round_no = round_no)
     do.call("rbind", temp)
 }
 
@@ -109,13 +110,6 @@ games_2016 <-
            winner = sub(" won.*", "", result)) %>%
     select(-result, -date_venue)
 
-## Separate out quarter scores
-scores_2016 <-
-    season_temp %>%
-    separate(quarters_home, into = paste0("q", 1:4, "_home"), sep = " ") %>%
-    separate(quarters_away, into = paste0("q", 1:4, "_home"), sep = " ") %>%
-    gather(playing, team, home:away) %>%
-
 ## Create data on scores
 ## This is ugly. There should be a better way.
 scores_2016 <-
@@ -130,6 +124,9 @@ scores_2016 <-
     select(game_id, team_away, quarters_away, score_away) %>%
     rename(team=team_away, quarters=quarters_away, score=score_away) %>%
     mutate(role="away"))
+
+# Save data
+save(scores_2016, games_2016, teams, venues, file="afltables.Rdata")
 
 ## merge teams data frame with season data frame
 played_where <-
