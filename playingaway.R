@@ -10,28 +10,6 @@ library(tidyr)
 library(readr)
 
 
-# Get team, venue and state data ----
-library(googlesheets)
-# Run gs_auth() to set this up
-
-gs <- gs_key("17041tChNHzRNYmi1nCCJvacOqbk19MJUzW8UVX91b_A")
-
-teams <-  gs_read(gs, sheet = "AFL_data", ws = "Teams",
-                  locale = readr::locale(encoding = "UTF-8")) %>%
-          tbl_df() %>%
-            mutate(is_vic = team_state=="Vic") %>%
-            arrange(desc(is_vic), team)
-
-
-venues <- gs_read(gs, sheet = "AFL_data", ws = "Venues",
-                  locale = readr::locale(encoding = "UTF-8")) %>%
-    tbl_df()
-
-states <- gs_read(gs, sheet = "AFL_data", ws = "States",
-                  locale = readr::locale(encoding = "UTF-8")) %>%
-    tbl_df()
-
-
 ## create variable for URL of season 2016 on afltables
 afltables <- read_html("http://afltables.com/afl/seas/2016.html")
 
