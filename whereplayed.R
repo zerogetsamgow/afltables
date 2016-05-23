@@ -8,145 +8,65 @@ library(ggplot2)
 library(ggthemes)
 library(tidyr)
 
-## create variable for URL of season 2016 on afltables
-afltables <- read_html("http://afltables.com/afl/seas/2016.html")
+games_per_venue <- games_2016 %>%
+    inner_join(venues) %>%
+    ggplot(aes(x=venue)) +
+    geom_bar()+
+    coord_flip() +
+    scale_x_discrete() +
+    labs(title="Nearly 100 games will be played at the MCG and Docklands this year", x="", y="") +
+    scale_y_continuous(breaks=c(seq(0,48,by=6)))
 
-## tables are poorly arranged and not named(?) so create data frame of required rows using ugly loop
-## Round 1 to 12 have eight matches = eight rows
-round_tables <- data.frame("start_row" = c(seq(3,(12*12),by=12)), "end_row"=c(seq(11,12*12,by=12)))
-## Round 13 to 15 are bye rounds, so have six matches
-round_tables <- rbind(round_tables,data.frame("start_row" = c(seq(147,(147+2*9),by=9)), "end_row"=c(seq(152,(152+2*9),by=9))))
-## Round 16 to 22 are bye rounds, so have six matches
-round_tables <- rbind(round_tables,data.frame("start_row" = c(seq(174,(174+12*12),by=12)), "end_row"=c(seq(182,(182+12*12),by=12))))
-
-## create empty data frame for season_2016 matche
-season_2016 <- data.frame()
-
-## run stupid loop to get each match
-## go to next round
-for (round_no in c(seq(1,23, by=1))) {
-  ## go to next match
-	for (round_tbl in c(seq(round_tables[round_no,1],round_tables[round_no,2], by=1))) {
-      ## read match data to table data frame   
-      afltables %>% html_nodes("table")  %>% .[[round_tbl]] %>% html_table(fill = TRUE, head = FALSE) -> table
-      
-  	  ## put all match data in one row
-      table <- cbind(round_no, table[1,], table[2,])
-      
-      ## append match to season data frame
-      season_2016 <- rbind(season_2016,table)
-  }
-}
-## remove junk
-remove(round_tbl,round_tables,table)
-
-## Name rows
-names(season_2016) <- c("round","home","quarters_home","score_home","date_venue",
-                  "away","quarters_away","score_away","result")
-
-## Remove rows not required for this analysis, probably shouldn't do this but makes gathering easier later
-season_2016$quarters_home <- NULL
-season_2016$quarters_away <- NULL
-season_2016$score_home <- NULL
-season_2016$score_away <- NULL
-
-## separate out quarter scores
-## season_2016 %>%  separate(quarters_home, into = c("q1_home", "q2_home", "q3_home", "q4_home"), sep = " ") -> season_2016
-## season_2016 %>%  separate(quarters_away, into = c("q1_away", "q2_away", "q3_away", "q4_away"), sep = " ") -> season_2016
-
-## separate out venue from date_venue field
-season_2016$venue <- sub(".*Venue: ", "", season_2016$date_venue)
-season_2016$date_venue <- NULL
-season_2016$winner <- sub(" won.*", "", season_2016$result)
-season_2016$result <- NULL
-
-## Convert venue variable to factor and create venue data frame with venue_state variable
-season_2016$venue <- factor(season_2016$venue)
-venues <- data.frame(venue = levels(season_2016$venue),venue_state = c("South Australia",
-												  	                                           "Tasmania",
-												                                               "Queensland",
-												                                               "Queensland",
-												                                               "Victoria",
-																																			 "Queensland",
-																																			 "Victoria",
-																																			 "Victoria",
-																																			 "Australian Capital Territory",
-																																			 "Northern Territory",
-																					 "New South Wales",
-																					 "Western Australia",
-																					 "New South Wales",
-																					 "Northern Territory",
-																					 "Tasmania"))
-
-## convert wide data to long data
-season_2016 %>% gather(playing, team, home:away)	%>% merge(venues) ->	season_2016
-
-## factorise team variables with level order chosen to group Victoria and interstate teams
-season_2016$team %>% factor(levels=c("Carlton","Collingwood","Essendon","Geelong","Hawthorn",
-																 "Melbourne","North Melbourne","Richmond","St Kilda","Western Bulldogs",
-																 "Adelaide","Brisbane Lions","Fremantle","Gold Coast","Greater Western Sydney",
-																 "Port Adelaide","Sydney","West Coast")) -> season_2016$team
-
-season_2016$winner %>% factor(levels=c("Carlton","Collingwood","Essendon","Geelong","Hawthorn",
-																		 "Melbourne","North Melbourne","Richmond","St Kilda","Western Bulldogs",
-																		 "Adelaide","Brisbane Lions","Fremantle","Gold Coast","Greater Western Sydney",
-																		 "Port Adelaide","Sydney","West Coast")) -> season_2016$winner
-
-## create teams data frame with team_state variable
-teams <- data.frame(team = levels(season_2016$team),team_state = c(rep("Victoria", 10),
-																																			 "South Australia",
-																																			 "Queensland",
-																																			 "Western Australia",
-																																			 "Queensland",
-																																			 "New South Wales",
-																																	     "South Australia",
-																																	     "New South Wales",
-																																     "Western Australia"))
-## merge teams data frame with season data frame
-season_2016 %>% merge(teams) -> season_2016																																	 
-
-played_where <- ggplot(season_2016, aes(x=playing, fill=venue)) +
+played_where <-
+    games_2016 %>% select(team_home,team_away,venue) %>%
+    gather(home_away, team, team_home:team_away) %>%
+    inner_join(venues) %>%
+    ggplot(aes(x=venue_state, fill=venue)) +
 	geom_bar() +
-  facet_wrap(~ team) +
+    facet_wrap(~ team) +
 	## coord_flip() +
 	labs(title="Where has each team played matches this year?", x="", y="",fill="Venue") +
-	## scale_fill_manual(labels=c("away"="Away","home"="Home"),values=c("dark blue","red")) +
-	scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
+	scale_fill_manual(labels=venues$venue,values=venues$venue_colour) +
+	scale_x_discrete(drop = FALSE) +
 	scale_y_continuous()
-
-																																	 
-## create chart of where teams have played by venue																																	 
-played_where <- ggplot(season_2016, aes(x=team, fill=venue)) +
-              	geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
-	              ## facet_wrap() +
-              	coord_flip() +
-	             	labs(title="Where has each team played matches this year?", x="", y="",fill="Venue") +
-	              scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
-	              scale_y_continuous()
 
 ## create chart of where teams have played by state
-played_state <- ggplot(season_2016, aes(x=team, fill=venue_state)) +
-	geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
-	## facet_wrap() +
-	coord_flip() +
-	labs(title="Where has each team played matches this year?", x="", y="",fill="State") +
-	scale_x_discrete(breaks= rev(levels(teams$team)), drop = FALSE) +
-	scale_y_continuous()
+played_vic_or_not <-  games_2016 %>% select(team_home,team_away,venue) %>%
+    gather(home_away, team, team_home:team_away) %>%
+    inner_join(teams) %>%
+    inner_join(venues) %>%
+    ggplot(aes(x=venue_binary, fill=venue_state)) +
+    theme_economist_white(gray_bg = FALSE) +
+    theme(legend.position="right") +
+    geom_bar() +
+    facet_wrap(~ team_abb, nrow = 3) +
+    ## coord_flip() +
+    labs(title="Where has each team played matches this year?", x="", y="",fill="State") +
+    scale_fill_manual(breaks=venues$venue_state, labels=venues$venue_state, values=c("royalblue","skyblue","darkorange2","maroon","red2","forestgreen","navyblue","gold")) +
+    scale_x_discrete(breaks=c("Vic","Other"), labels=c("Vic","Other"),drop = FALSE) +
+    scale_y_continuous(breaks=c(5,10,15,20))
 
-## create chart showing where teams have won 
-wins_by_venue <- ggplot(season_2016, aes(x=winner, fill=venue)) +
-									 geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
-									 ## facet_wrap() +
-	               	 coord_flip() +
-	                 labs(title="Where has each team won matches this year?", x="", y="",fill="Venue") +
-									 scale_x_discrete(drop = FALSE) +
-									 scale_y_continuous()
 
-wins_by_state <- ggplot(season_2016, aes(x=winner, fill=venue_state)) +
-                	geom_bar(data=subset.data.frame(season_2016,(season_2016$winner %in% levels(teams$team)))) +
-	                ## facet_wrap() +
-									coord_flip() +
-									labs(title="Where has each team won this year?", x="", y="",fill="State") +
-									scale_x_discrete(drop = FALSE) +
-									scale_y_continuous()
+## create chart showing where teams have won
+wins_by_venue <- games_2016 %>%
+                 filter(winner %in% teams$team) %>%
+                 ggplot(aes(x=winner, fill=venue)) +
+				 geom_bar() +
+				 ## facet_wrap() +
+	             coord_flip() +
+	             labs(title="Where has each team won matches this year?", x="", y="",fill="Venue") +
+				 scale_x_discrete(drop = FALSE) +
+				 scale_y_continuous()
+
+wins_by_state <- games_2016 %>%
+                 filter(winner %in% teams$team) %>%
+                 left_join(venues) %>%
+                 left_join(states, by=c("venue_state"="state_abb")) %>%
+                 ggplot(aes(x=winner, fill=state_comb)) +
+                 geom_bar() +
+	             ## facet_wrap() +
+				 coord_flip() +
+				 labs(title="Where has each team won this year?", x="", y="",fill="State") +
+				 scale_x_discrete(drop = FALSE) +
+				 scale_y_continuous()
 

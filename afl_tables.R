@@ -16,6 +16,7 @@ teams <-  gs_read(gs, sheet = "AFL_data", ws = "Teams",
     mutate(is_vic = team_state=="Vic") %>%
     arrange(desc(is_vic), team)
 
+teams$team %>% factor() -> teams$team
 
 venues <- gs_read(gs, sheet = "AFL_data", ws = "Venues",
                   locale = readr::locale(encoding = "UTF-8")) %>%
