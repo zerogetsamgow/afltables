@@ -37,15 +37,15 @@ round_tables <-
         data_frame(start_row = seq(3, 12*12, by=12),
                    end_row = start_row + 8),
         ## Rounds 13 to 15 are bye rounds, so have six matches
-        data_frame(start_row = seq(147, 147 + 2*9, by=9),
+         data_frame(start_row = seq(147, 147 + 2*15, by=15),
                                  end_row = start_row + 5),
         ## Rounds 16 to 22 are bye rounds, so have six matches
-        data_frame(start_row = seq(174, 174 + 12*12, by=12),
+        data_frame(start_row = seq(192, 192 + 12*8, by=12),
                                  end_row = start_row + 8))
 
 get_table_row <- function(round_no, round_tbl) {
     ## read match data to data frame called the_table
-    the_table <-
+    the_table <<-
         afltables %>%
         html_nodes("table") %>%
         .[[round_tbl]] %>%
@@ -61,14 +61,14 @@ get_row_nums <- function(round_no) {
 }
 
 get_table_rows <- function(round_no) {
-    temp <- lapply(get_row_nums(round_no),
+    temp1 <<- lapply(get_row_nums(round_no),
                    get_table_row, round_no = round_no)
-    do.call("rbind", temp)
+    do.call("rbind", temp1)
 }
 
 get_full_table <- function() {
-    temp <- lapply(1:23, get_table_rows)
-    do.call("rbind", temp)
+    temp2 <<- lapply(1:23, get_table_rows)
+    do.call("rbind", temp2)
 }
 
 season_2016 <- as_data_frame(get_full_table())
@@ -89,9 +89,11 @@ games_2016 <-
     mutate(local_time = gsub("\\s+(\\(|Att).*$", "", date_venue),
            venue = sub(".*Venue: ", "", date_venue),
            attendance = as.integer(sub(",", "",
-                            gsub("^.*Att:([0-9,]+).*$", "\\1", date_venue))),
+                              gsub("^.*Att:([0-9,]+).*$", "\\1", date_venue))),
            winner = sub(" won.*", "", result),
-           loser = ifelse(winner==team_home, team_away, team_home)) %>%
+           loser = ifelse(winner==team_home, team_away, team_home),
+           team_home = factor(team_home),
+           team_away = factor(team_away)) %>%
     select(-result, -date_venue)
 
 ## Create data on scores
@@ -100,7 +102,8 @@ scores_2016 <-
     season_2016 %>%
     select(game_id, team_home, quarters_home, score_home) %>%
     rename(team=team_home, quarters=quarters_home, score=score_home) %>%
-    mutate(playing_at="home")
+    mutate(playing_at="home",
+           quarters=gsub("^ ", "", quarters))
 
 scores_2016 <-
     rbind(scores_2016,
