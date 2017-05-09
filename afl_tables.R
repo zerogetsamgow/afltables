@@ -3,7 +3,6 @@ library(dplyr)
 library(tidyr)
 library(rvest)
 
-
 # Get team, venue and state data ----
 library(googlesheets)
 # Run gs_auth() to set this up
@@ -27,7 +26,7 @@ states <- gs_read(gs, sheet = "AFL_data", ws = "States",
     tbl_df()
 
 ## create variable for URL of season 2016 on afltables
-afltables <- read_html("http://afltables.com/afl/seas/2016.html")
+afltables <- read_html(paste0("http://afltables.com/afl/seas/2016.html"))
 
 # Tables are poorly arranged and not named(?)
 # so create data frame of required rows using ugly loop
@@ -37,7 +36,7 @@ round_tables <-
         data_frame(start_row = seq(3, 12*12, by=12),
                    end_row = start_row + 8),
         ## Rounds 13 to 15 are bye rounds, so have six matches
-         data_frame(start_row = seq(147, 147 + 2*15, by=15),
+        data_frame(start_row = seq(147, 147 + 2*15, by=15),
                                  end_row = start_row + 5),
         ## Rounds 16 to 22 are bye rounds, so have six matches
         data_frame(start_row = seq(192, 192 + 12*8, by=12),
@@ -74,17 +73,17 @@ get_full_table <- function() {
 season_2016 <- as_data_frame(get_full_table())
 
 ## Name rows
-names(season_2016) <-
+names(season_df) <-
     c("round", "team_home", "quarters_home",
       "score_home", "date_venue",
       "team_away", "quarters_away", "score_away", "result")
 
-season_2016$game_id <- 1:nrow(season_2016)
+season_df$game_id <- 1:nrow(season_df)
 
 ## Remove rows not required for this analysis, probably shouldn't
 ## do this but makes gathering easier later
-games_2016 <-
-    season_2016 %>%
+games_df <-
+    season_df %>%
     select(game_id, round, date_venue, result, team_home, team_away) %>%
     mutate(local_time = gsub("\\s+(\\(|Att).*$", "", date_venue),
            venue = sub(".*Venue: ", "", date_venue),
@@ -98,16 +97,16 @@ games_2016 <-
 
 ## Create data on scores
 ## This is ugly. There should be a better way.
-scores_2016 <-
-    season_2016 %>%
+scores_df <-
+    season_df %>%
     select(game_id, team_home, quarters_home, score_home) %>%
     rename(team=team_home, quarters=quarters_home, score=score_home) %>%
     mutate(playing_at="home",
            quarters=gsub("^ ", "", quarters))
 
-scores_2016 <-
-    rbind(scores_2016,
-    season_2016 %>%
+scores_df <-
+    rbind(scores_df,
+    season_df %>%
     select(game_id, team_away, quarters_away, score_away) %>%
     rename(team=team_away, quarters=quarters_away, score=score_away) %>%
     mutate(playing_at="away"))
@@ -118,11 +117,10 @@ top_eight <-
     read_html() %>%
     html_nodes("table") %>%
     .[[1]] %>%
-    html_table(fill = TRUE, head = FALSE) %>%
+    html_table(fill = TRUE, head = TRUE) %>%
     data.frame() %>%
     .[-c(1,2),] %>%
     .[1:8,1] %>%
     data_frame(team=.)
 
 # Save data
-save(scores_2016, games_2016, teams, venues, top_eight, file="afltables.Rdata")
