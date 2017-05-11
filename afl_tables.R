@@ -73,7 +73,7 @@ get_full_table <- function() {
 season_2016 <- as_data_frame(get_full_table())
 
 ## Name rows
-names(season_df) <-
+names(season_2016) <-
     c("round", "team_home", "quarters_home",
       "score_home", "date_venue",
       "team_away", "quarters_away", "score_away", "result")
@@ -124,3 +124,4 @@ top_eight <-
     data_frame(team=.)
 
 # Save data
+save(scores_df, games_df, teams, venues,  top_eight, file="afltables.Rdata")
