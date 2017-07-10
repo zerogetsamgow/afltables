@@ -62,7 +62,7 @@ for (season in seasons) {
                                 this_match <- cbind(season, match_id, node_table[1,], node_table[2,])
                                 ## Add match to matches_df
                                 matches_df<-rbind(matches_df,this_match)},
-                        "Ladder"={ladders_df<-rbind(ladders_df, node_table[2:19,] %>% mutate(season=season))})
+                        "Ladder"={ladders_df<-rbind(ladders_df, node_table[2:nrow(node_table),] %>% mutate(season=season))})
         }
     }
 }
