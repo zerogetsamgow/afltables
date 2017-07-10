@@ -1,4 +1,3 @@
-library(rvest)
 library(magrittr)
 library(stringr)
 library(plyr)
@@ -9,85 +8,21 @@ library(ggthemes)
 library(tidyr)
 library(readr)
 
-
-## create variable for URL of season 2016 on afltables
-afltables <- read_html("http://afltables.com/afl/seas/2016.html")
-
-# Tables are poorly arranged and not named(?)
-# so create data frame of required rows using ugly loop
-round_tables <-
-    rbind(
-        ## Rounds 1 to 12 have eight matches = eight rows
-        data_frame(start_row = seq(3, 12*12, by=12),
-                   end_row = start_row + 8),
-        ## Rounds 13 to 15 are bye rounds, so have six matches
-        data_frame(start_row = seq(147, 147 + 2*9, by=9),
-                                 end_row = start_row + 5),
-        ## Rounds 16 to 22 are bye rounds, so have six matches
-        data_frame(start_row = seq(174, 174 + 12*12, by=12),
-                                 end_row = start_row + 8))
-
-get_table_row <- function(round_no, round_tbl) {
-    ## read match data to data frame called the_table
-    the_table <-
-        afltables %>%
-        html_nodes("table") %>%
-        .[[round_tbl]] %>%
-        html_table(fill = TRUE, head = FALSE)
-
-    ## put all match data in one row and return
-    return(cbind(round_no, the_table[1,], the_table[2,]))
-
-}
-
-get_table_rows <- function(round_no) {
-    temp <- lapply(seq(round_tables[round_no, 1],
-               round_tables[round_no, 2]),
-           get_table_row, round_no = round_no)
-    do.call("rbind", temp)
-}
-
-get_full_table <- function() {
-    temp <- lapply(1:23, get_table_rows)
-    do.call("rbind", temp)
-}
-
-season_2016 <- as_data_frame(get_full_table())
-
-## Name rows
-names(season_2016) <-
-    c("round", "team_home", "quarters_home",
-      "score_home", "date_venue",
-      "team_away", "quarters_away", "score_away", "result")
-
-season_2016$game_id <- 1:nrow(season_2016)
-
 ## Remove rows not required for this analysis, probably shouldn't
 ## do this but makes gathering easier later
-games_2016 <-
-    season_2016 %>%
-    select(game_id, round, date_venue, result) %>%
-    mutate(local_time = gsub("\\s+(\\(|Att).*$", "", date_venue),
-           venue = sub(".*Venue: ", "", date_venue),
-           attendance = as.integer(sub(",", "",
-                            gsub("^.*Att:([0-9,]+).*$", "\\1", date_venue))),
-           winner = sub(" won.*", "", result)) %>%
-    select(-result, -date_venue)
 
 ## Separate out quarter scores
-scores_2016 <-
-    season_temp %>%
+scores_2016 <- matches_df %>%
     separate(quarters_home, into = paste0("q", 1:4, "_home"), sep = " ") %>%
-    separate(quarters_away, into = paste0("q", 1:4, "_home"), sep = " ") %>%
-    gather(playing, team, home:away) %>%
+    separate(quarters_away, into = paste0("q", 1:4, "_home"), sep = " ") ## %>%
+    ##gather(playing, team, home:away) %>%
 
 ## Create data on scores
 ## This is ugly. There should be a better way.
-scores_2016 <-
-    season_2016 %>%
-    select(game_id, team_home, quarters_home, score_home) %>%
-    rename(team=team_home, quarters=quarters_home, score=score_home) %>%
-    mutate(role="home")
+teams_homes_df <- matches_df %>%
+                  select(season, match_id, team_home, quarters_home, score_home) %>%
+                  rename(team=team_home, quarters=quarters_home, score=score_home) %>%
+                  mutate(role="home")
 
 scores_2016 <-
     rbind(scores_2016,

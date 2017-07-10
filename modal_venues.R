@@ -1,7 +1,7 @@
 ## source('~/afltables/afl_tables_2.R')
 
 modal_venue <- matches_df %>%
-               filter(!finals) %>%
+               filter(!finals & season > 2009) %>%
                       select(team_home, team_away, venue, season, match_id) %>%
                       gather(playing, team, team_home, team_away) %>%
                        mutate(playing=sub("team_","",playing)) %>%
@@ -22,3 +22,5 @@ modal_venue_plot <- modal_venue %>%
                     ## geom_text(x=2012,y=17,label=venue)+
                     facet_wrap(~team) +
                     scale_y_continuous(limit=c(0,18),expand=c(0,0),breaks=c(seq(0,16,by=4)))
+
+ggsave("modal_venue_plot.png",plot= modal_venue_plot, path= "~/afltables/plots/")

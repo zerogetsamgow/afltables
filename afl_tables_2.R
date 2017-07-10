@@ -88,7 +88,9 @@ matches_df <- matches_df %>% mutate(team_home = gsub("(Footscray,Kangaroos)","(W
                                     attendance = as.integer(sub(",", "",gsub("^.*Att: ([0-9,]+).*$", "\\1", date_venue))),
                                     winner = ifelse(!grepl("Match drawn",result),sub(" won.*", "", result),""),
                                     loser = ifelse(winner==team_home, team_away, ifelse(winner=="","",team_home)),
-                                    win_margin = ifelse(grepl("Match drawn",result),0,as.integer(gsub(".*by\\s([0-9]+)\\spts.*","\\1",result))))## %>%
+                                    win_margin = ifelse(grepl("Match drawn",result),0,as.integer(gsub(".*by\\s([0-9]+)\\spt.*","\\1",result)))) %>%
+                                    separate(quarters_home, into = paste0("q", 1:4, "_home"), sep = " ") %>%
+                                    separate(quarters_away, into = paste0("q", 1:4, "_away"), sep = " ")## %>%
                                     ## select(-result, -date_venue)
 
 ## Create finals variable
