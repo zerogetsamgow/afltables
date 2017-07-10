@@ -26,7 +26,7 @@ states <- gs_read(gs, sheet = "AFL_data", ws = "States",
                   locale = readr::locale(encoding = "UTF-8")) %>%
     tbl_df()
 
-seasons <- c(1995:2017)
+seasons <- c(1990:2017)
 
 matches_df <- data.frame()
 ladders_df <- data.frame()
@@ -35,7 +35,13 @@ match_id <- 0
 match_or_ladder <- function(node_table) {
       node_table %>% nrow() %>% as.character() %>% switch(., "1"="Bye",
                                                              "2"="Match",
-                                                             "16"="Ladder","17"="Ladder","18"="Ladder","19"="Ladder") %>% return()
+      																										   "9"="Ladder", 
+      																										   "14"="Ladder",
+      																										   "15"="Ladder",
+                                                             "16"="Ladder",
+      																										   "17"="Ladder",
+      																										   "18"="Ladder",
+      																										   "19"="Ladder") %>% return()
 }
 
 for (season in seasons) {
@@ -43,8 +49,8 @@ for (season in seasons) {
     afltables <- read_html(paste0("http://afltables.com/afl/seas/",as.character(season),".html"))
 
     ## Count number of nodes of type td_table
-    node_type <- "center table"
-    no_of_tables <-  afltables %>%html_nodes(node_type)  %>% length()
+    node_type <- "td table"
+    no_of_tables <-  afltables %>% html_nodes(node_type)  %>% length()
     match_id <- 0
 
     for (table_count in c(seq(1,no_of_tables,by=1))) {
@@ -105,4 +111,3 @@ regular_df <- matches_df %>% filter(!(season %in% c(2012,2013,2014,2016,2017) & 
 matches_df <- rbind(finals_df, regular_df) %>% arrange(season, match_id)
 remove(finals_df, regular_df)
 
-strptime(matches_df$local_time[1], "%d-%b-%Y %I:%M %p")
