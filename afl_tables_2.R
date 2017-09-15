@@ -30,7 +30,7 @@ seasons <- c(1990:2017)
 
 matches_df <- data.frame()
 ladders_df <- data.frame()
-match_id <- 0
+match_id <- 0L
 
 match_or_ladder <- function(node_table) {
       node_table %>% nrow() %>% as.character() %>% switch(., "1"="Bye",
@@ -49,13 +49,13 @@ for (season in seasons) {
     afltables <- read_html(paste0("http://afltables.com/afl/seas/",as.character(season),".html"))
 
     ## Count number of nodes of type td_table
-    node_type <- "td table"
+    node_type <- "center table"
     no_of_tables <-  afltables %>% html_nodes(node_type)  %>% length()
-    match_id <- 0
+    match_id <- 0L
 
     for (table_count in c(seq(1,no_of_tables,by=1))) {
         node_count <- table_count
-        node_table <<- afltables %>%
+        node_table <- afltables %>%
             html_nodes(node_type)  %>%
             .[[table_count]] %>%
             html_table(fill = TRUE, head = FALSE) %>%
@@ -64,7 +64,7 @@ for (season in seasons) {
         if(node_table %>% ncol()==4) {
                 switch(node_table %>% match_or_ladder(),
                         "Match"={## Spread the data to create single row for each match
-                                match_id <- match_id+1
+                                match_id <- match_id+1L
                                 this_match <- cbind(season, match_id, node_table[1,], node_table[2,])
                                 ## Add match to matches_df
                                 matches_df<-rbind(matches_df,this_match)},
@@ -99,15 +99,25 @@ matches_df <- matches_df %>% mutate(team_home = gsub("(Footscray,Kangaroos)","(W
                                     separate(quarters_away, into = paste0("q", 1:4, "_away"), sep = " ")## %>%
                                     ## select(-result, -date_venue)
 
-## Create finals variable
-finals_df <- matches_df %>% filter(season %in% c(1995:2011) & match_id %in% c(188:197)| ## Note 196 games in all but 2011. Drawn grand final
-                                   season %in% c(2012,2013,2014,2016,2017) & match_id %in% c(199:207)|
-                                       season %in% c(2015) & match_id %in% c(198:206)) %>% ## Game cancelled n 2015
-                            mutate(finals=TRUE)
-regular_df <- matches_df %>% filter(!(season %in% c(2012,2013,2014,2016,2017) & match_id %in% c(199:207)) &
-                                        !(season %in% c(2015) & match_id %in% c(198:206))) %>%
-                            mutate(finals=FALSE)
+## Create finals variable NEEDS fixing
+finals_df <- matches_df %>% dplyr::group_by(season) %>% filter((season %in% c(1990:1993) & match_id %in% c((n()-6):n()))|
+																															 (season %in% c(1994:2009) & match_id %in% c((n()-8):n()))|
+																															 (season %in% c(2010:2010) & match_id %in% c((n()-9):n()))| ## drawn grand final
+																															 (season %in% c(2011:2016) & match_id %in% c((n()-8):n()))) %>%
+																												 mutate(finals=TRUE)
 
-matches_df <- rbind(finals_df, regular_df) %>% arrange(season, match_id)
-remove(finals_df, regular_df)
+regular_df <- matches_df %>% dplyr::group_by(season) %>% filter((season %in% c(1990:1993) & match_id %in% c(1:(n()-7)))|
+																																	(season %in% c(1994:2009) & match_id %in% c(1:(n()-9)))|
+																																	(season %in% c(2010:2010) & match_id %in% c(1:(n()-10)))| ## drawn grand final
+																																	(season %in% c(2011:2016) & match_id %in% c(1:(n()-9)))) %>%
+																												 mutate(finals=FALSE)
 
+this_season <- matches_df %>% filter(season==2017) %>%
+	mutate(finals=FALSE)
+
+
+matches_df <- rbind(finals_df, regular_df)  %>% arrange(season, match_id)
+##remove(finals_df, regular_df)
+
+close_finals_df <- finals_df %>% filter(win_margin<7)
+close_finals_eagles_df <- finals_df %>% filter(win_margin<7 & (team_home=="West Coast"|team_away=="West Coast"))
